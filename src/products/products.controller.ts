@@ -12,6 +12,7 @@ import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { ProductsService } from './products.service';
 import { CreateProductDto } from './create-product.dto';
 import { Request } from 'express';
+import { Express } from 'express';
 
 @Controller('products')
 export class ProductsController {
