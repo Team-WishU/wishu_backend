@@ -11,13 +11,11 @@ export class ProductsService {
   ) {}
 
   async create(
-    createProductDto: CreateProductDto,
-    imageUrl: string,
+    createProductDto: CreateProductDto & { imageUrl: string },
     user: { nickname: string; profileImage: string },
   ) {
     const product = new this.productModel({
       ...createProductDto,
-      imageUrl,
       uploadedBy: user,
     });
 
@@ -32,8 +30,29 @@ export class ProductsService {
         imageUrl: saved.imageUrl,
         productUrl: saved.productUrl,
         uploadedBy: saved.uploadedBy,
-        createdAt: saved.createdAt,
       },
     };
+  }
+
+  async findById(productId: string): Promise<ProductDocument | null> {
+    return this.productModel.findById(productId);
+  }
+
+  async addComment(
+    productId: string,
+    text: string,
+    user: { nickname: string; profileImage: string },
+  ): Promise<ProductDocument | null> {
+    const comment = {
+      text,
+      nickname: user.nickname,
+      profileImage: user.profileImage,
+    };
+
+    return this.productModel.findByIdAndUpdate(
+      productId,
+      { $push: { comments: comment } },
+      { new: true },
+    );
   }
 }

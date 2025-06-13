@@ -3,7 +3,7 @@ import { Document } from 'mongoose';
 
 export type ProductDocument = Product & Document;
 
-@Schema({ timestamps: { createdAt: true, updatedAt: false } })
+@Schema({ timestamps: true })
 export class Product {
   @Prop({ required: true })
   title: string;
@@ -21,15 +21,15 @@ export class Product {
   tags: string[];
 
   @Prop({ required: true })
-  productUrl: string;
-
-  @Prop({ required: true })
   imageUrl: string;
+
+  @Prop()
+  productUrl: string;
 
   @Prop({
     type: {
-      nickname: { type: String, required: true },
-      profileImage: { type: String, required: true },
+      nickname: String,
+      profileImage: String,
     },
   })
   uploadedBy: {
@@ -37,15 +37,22 @@ export class Product {
     profileImage: string;
   };
 
-  //   @Prop({
-  //     type: {
-  //       nickname: { type: String },
-  //       profileImage: { type: String },
-  //     },
-  //   })
-
-  @Prop()
-  createdAt: Date;
+  @Prop({
+    type: [
+      {
+        text: { type: String, required: true },
+        nickname: { type: String, required: true },
+        profileImage: { type: String, required: true },
+        // createdAt 제거됨
+      },
+    ],
+    default: [],
+  })
+  comments: {
+    text: string;
+    nickname: string;
+    profileImage: string;
+  }[];
 }
 
 export const ProductSchema = SchemaFactory.createForClass(Product);

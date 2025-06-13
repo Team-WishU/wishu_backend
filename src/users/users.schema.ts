@@ -1,11 +1,9 @@
-// src/users/users.schema.ts
-
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document } from 'mongoose';
 
 export type UserDocument = User & Document;
 
-@Schema({ timestamps: true }) // createdAt, updatedAt 자동 추가됨
+@Schema({ timestamps: true })
 export class User {
   @Prop({ required: true, unique: true })
   email: string;
@@ -13,20 +11,39 @@ export class User {
   @Prop({ required: true })
   password: string;
 
+  @Prop({ default: false })
+  isEmailVerified: boolean;
+
   @Prop({ required: true })
   name: string;
 
   @Prop({ required: true })
-  birthYear: number;
+  birthDate: Date;
 
   @Prop({ required: true })
-  gender: string;
+  gender: 'male' | 'female';
 
-  @Prop()
-  nickname?: string;
+  @Prop({ required: true, unique: true })
+  nickname: string;
 
-  @Prop()
-  profileImage?: string;
+  @Prop({
+    required: true,
+    enum: [
+      'chicken.png',
+      'cow.png',
+      'dog.png',
+      'dragon.png',
+      'horse.png',
+      'monkey.png',
+      'mouse.png',
+      'pig.png',
+      'rabbit.png',
+      'sheep.png',
+      'snake.png',
+      'tiger.png',
+    ],
+  })
+  profileImage: string;
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);

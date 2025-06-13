@@ -1,4 +1,4 @@
-import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
+import { Module, NestModule } from '@nestjs/common';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
@@ -11,6 +11,7 @@ import { CommonModule } from './common/common.module';
 import { MongooseModule } from '@nestjs/mongoose';
 import { ConfigModule } from '@nestjs/config';
 import mongoose from 'mongoose';
+import { EmailVerificationModule } from './email-verification/email-verification.module';
 @Module({
   imports: [
     AuthModule,
@@ -20,6 +21,7 @@ import mongoose from 'mongoose';
     WishlistModule,
     ChatbotModule,
     CommonModule,
+    EmailVerificationModule,
     ConfigModule.forRoot({ isGlobal: true }),
     MongooseModule.forRoot(process.env.MONGODB_URI!),
   ],

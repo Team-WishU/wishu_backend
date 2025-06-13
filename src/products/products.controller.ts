@@ -2,17 +2,15 @@ import {
   Controller,
   Post,
   UseGuards,
-  UseInterceptors,
-  UploadedFile,
   Body,
   Req,
+  Get,
+  Param,
 } from '@nestjs/common';
-import { FileInterceptor } from '@nestjs/platform-express';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { ProductsService } from './products.service';
 import { CreateProductDto } from './create-product.dto';
 import { Request } from 'express';
-import { Express } from 'express';
 
 @Controller('products')
 export class ProductsController {
@@ -20,17 +18,27 @@ export class ProductsController {
 
   @UseGuards(JwtAuthGuard)
   @Post()
-  @UseInterceptors(FileInterceptor('image'))
   async createProduct(
-    @UploadedFile() file: Express.Multer.File,
-    @Body() createProductDto: CreateProductDto,
+    @Body() createProductDto: CreateProductDto & { imageUrl: string },
     @Req() req: Request,
   ) {
     const user = req.user as { nickname: string; profileImage: string };
+    return this.productsService.create(createProductDto, user);
+  }
 
-    // TODO: 이미지 업로드 처리하여 실제 URL 생성 (임시로 고정 URL 사용)
-    const imageUrl = `https://cdn.wishu.com/products/temp-${Date.now()}.jpg`;
+  @Get(':id')
+  async getProductById(@Param('id') id: string) {
+    return this.productsService.findById(id);
+  }
 
-    return this.productsService.create(createProductDto, imageUrl, user);
+  @UseGuards(JwtAuthGuard)
+  @Post(':id/comments')
+  async addComment(
+    @Param('id') id: string,
+    @Body('text') text: string,
+    @Req() req: Request,
+  ) {
+    const user = req.user as { nickname: string; profileImage: string };
+    return this.productsService.addComment(id, text, user);
   }
 }
