@@ -11,6 +11,9 @@ interface UserDocument {
   password: string;
   nickname: string;
   profileImage: string;
+  name: string;
+  birthDate: Date;
+  gender: 'male' | 'female';
 }
 
 @Injectable()
@@ -31,6 +34,9 @@ export class AuthService {
       email: string;
       nickname: string;
       profileImage: string;
+      name: string;
+      birthDate: string;
+      gender: string;
     };
   }> {
     const user = await this.userModel.findOne({ email });
@@ -53,6 +59,9 @@ export class AuthService {
         email: user.email,
         nickname: user.nickname,
         profileImage: user.profileImage,
+        name: user.name,
+        birthDate: user.birthDate.toISOString().split('T')[0], // YYYY-MM-DD
+        gender: user.gender,
       },
     };
   }

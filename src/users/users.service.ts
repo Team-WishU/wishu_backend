@@ -1,5 +1,8 @@
-// users.service.ts
-import { Injectable, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  BadRequestException,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { CreateUserDto } from './create-user.dto';
@@ -19,7 +22,9 @@ export class UsersService {
     private evModel: Model<EmailVerificationDocument>,
   ) {}
 
-  /** 회원가입: 인증확인 → 중복확인 → 저장 → 인증 레코드 삭제 */
+  /**
+   * 회원가입: 이메일 인증 확인 → 중복 확인 → 저장 → 인증 레코드 삭제
+   */
   async register(createUserDto: CreateUserDto): Promise<User> {
     const { email, nickname, password } = createUserDto;
 
@@ -60,9 +65,16 @@ export class UsersService {
     return { isAvailable: !exists };
   }
 
-  /** 프로필 조회 (password 제외) */
-  async findById(userId: string): Promise<User | null> {
-    return this.userModel.findById(userId).select('-password');
+  /**
+   * 프로필 조회 (비밀번호 제외)
+   * 유저가 없으면 404 예외 발생
+   */
+  async findById(userId: string): Promise<User> {
+    const user = await this.userModel.findById(userId).select('-password');
+    if (!user) {
+      throw new NotFoundException('사용자를 찾을 수 없습니다.');
+    }
+    return user;
   }
 
   /** 프로필 수정 (닉네임, 프로필 이미지만 가능) */
