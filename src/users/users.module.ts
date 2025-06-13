@@ -1,5 +1,3 @@
-// users/users.module.ts
-
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { UsersController } from './users.controller';
@@ -9,6 +7,7 @@ import {
   EmailVerification,
   EmailVerificationSchema,
 } from '../email-verification/email-verification.schema';
+import { AuthModule } from '../auth/auth.module';
 
 @Module({
   imports: [
@@ -16,6 +15,7 @@ import {
       { name: User.name, schema: UserSchema },
       { name: EmailVerification.name, schema: EmailVerificationSchema },
     ]),
+    AuthModule,
   ],
   controllers: [UsersController],
   providers: [UsersService],
