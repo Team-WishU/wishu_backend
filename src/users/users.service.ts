@@ -2,24 +2,33 @@ import {
   Injectable,
   BadRequestException,
   NotFoundException,
+  Inject,
+  forwardRef,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
+import * as bcrypt from 'bcryptjs';
+
 import { CreateUserDto } from './create-user.dto';
 import { User, UserDocument } from './users.schema';
 import {
   EmailVerification,
   EmailVerificationDocument,
 } from '../email-verification/email-verification.schema';
-import * as bcrypt from 'bcryptjs';
+import { ProductsService } from '../products/products.service';
+import { CommentsService } from '../comments/comments.service';
 
 @Injectable()
 export class UsersService {
   constructor(
     @InjectModel(User.name)
-    private userModel: Model<UserDocument>,
+    private readonly userModel: Model<UserDocument>,
     @InjectModel(EmailVerification.name)
-    private evModel: Model<EmailVerificationDocument>,
+    private readonly evModel: Model<EmailVerificationDocument>,
+    @Inject(forwardRef(() => ProductsService))
+    private readonly productsService: ProductsService,
+    @Inject(forwardRef(() => CommentsService))
+    private readonly commentsService: CommentsService,
   ) {}
 
   /**
@@ -28,13 +37,11 @@ export class UsersService {
   async register(createUserDto: CreateUserDto): Promise<User> {
     const { email, nickname, password } = createUserDto;
 
-    // 1) 이메일 인증 여부 확인
     const verified = await this.evModel.exists({ email });
     if (!verified) {
       throw new BadRequestException('이메일 인증이 필요합니다.');
     }
 
-    // 2) 중복 이메일 또는 닉네임 확인
     const existing = await this.userModel.findOne({
       $or: [{ email }, { nickname }],
     });
@@ -42,10 +49,8 @@ export class UsersService {
       throw new BadRequestException('이미 사용 중인 이메일 또는 닉네임입니다.');
     }
 
-    // 3) 비밀번호 해싱
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // 4) 사용자 생성
     const user = new this.userModel({
       ...createUserDto,
       password: hashedPassword,
@@ -53,7 +58,6 @@ export class UsersService {
     });
     const saved = await user.save();
 
-    // 5) 인증 레코드 삭제
     await this.evModel.deleteMany({ email });
 
     return saved;
@@ -65,10 +69,7 @@ export class UsersService {
     return { isAvailable: !exists };
   }
 
-  /**
-   * 프로필 조회 (비밀번호 제외)
-   * 유저가 없으면 404 예외 발생
-   */
+  /** 프로필 조회 (비밀번호 제외) */
   async findById(userId: string): Promise<User> {
     const user = await this.userModel.findById(userId).select('-password');
     if (!user) {
@@ -86,5 +87,16 @@ export class UsersService {
       new: true,
       select: '-password',
     });
+  }
+
+  /** 회원 탈퇴 */
+  async deleteUser(userId: string): Promise<void> {
+    const user = await this.userModel.findById(userId);
+    if (!user) throw new NotFoundException('사용자를 찾을 수 없습니다.');
+
+    await this.commentsService.deleteByUser(userId); // 댓글 삭제
+    await this.productsService.deleteByOwner(user.nickname); // 상품 삭제
+    await this.productsService.deleteCommentsByNickname(user.nickname); // 댓글 제거 추가
+    await this.userModel.findByIdAndDelete(userId); // 유저 삭제
   }
 }
