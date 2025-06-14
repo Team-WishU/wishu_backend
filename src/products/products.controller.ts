@@ -6,6 +6,7 @@ import {
   Req,
   Get,
   Param,
+  Query,
 } from '@nestjs/common';
 import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
 import { ProductsService } from './products.service';
@@ -50,7 +51,7 @@ export class ProductsController {
   }
   //상품 전체 목록 조회
   @Get()
-  async getAllProducts() {
-    return this.productsService.findAll();
+  async getAllProducts(@Query('category') category?: string) {
+    return this.productsService.findAll(category);
   }
 }

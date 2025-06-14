@@ -59,7 +59,9 @@ export class ProductsService {
   }
 
   // 상품 전체 목록을 DB에서 조회
-  async findAll(): Promise<Product[]> {
-    return this.productModel.find().exec();
+  // products.service.ts
+  async findAll(category?: string): Promise<Product[]> {
+    const query = category ? { category } : {};
+    return this.productModel.find(query).sort({ createdAt: -1 }).exec();
   }
 }
