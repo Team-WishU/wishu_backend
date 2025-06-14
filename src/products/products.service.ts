@@ -64,15 +64,20 @@ export class ProductsService {
     const query: any = {};
 
     if (filters.keyword) {
-      query.title = { $regex: filters.keyword, $options: 'i' };
+      query.$or = [
+        { title: { $regex: filters.keyword, $options: 'i' } },
+        { brand: { $regex: filters.keyword, $options: 'i' } },
+        { category: { $regex: filters.keyword, $options: 'i' } },
+        { tags: { $in: [filters.keyword] } },
+      ];
     }
 
     if (filters.tag) {
-      query.tags = filters.tag;
+      query.tags = { $in: [filters.tag] };
     }
 
     if (filters.brand) {
-      query.brand = filters.brand;
+      query.brand = { $regex: filters.brand, $options: 'i' };
     }
 
     const products = await this.productModel.find(query).exec();
