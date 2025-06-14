@@ -1,8 +1,14 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import {
+  Injectable,
+  UnauthorizedException,
+  Inject,
+  forwardRef,
+} from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import * as bcrypt from 'bcryptjs';
+import { UsersService } from '../users/users.service';
 
 // UserDocument 인터페이스 정의
 interface UserDocument {
@@ -21,7 +27,14 @@ export class AuthService {
   constructor(
     @InjectModel('User') private userModel: Model<UserDocument>,
     private jwtService: JwtService,
+    @Inject(forwardRef(() => UsersService))
+    private readonly usersService: UsersService,
   ) {}
+
+  // 회원 탈퇴 로직
+  async withdraw(userId: string): Promise<void> {
+    await this.usersService.deleteUser(userId);
+  }
 
   async login(
     email: string,

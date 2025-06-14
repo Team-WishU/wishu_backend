@@ -136,4 +136,17 @@ export class ProductsService {
 
     return { deletedCount: result.deletedCount };
   }
+
+  async deleteByOwner(nickname: string): Promise<void> {
+    console.log('[회원 탈퇴 삭제] nickname:', nickname);
+    await this.productModel.deleteMany({ 'uploadedBy.nickname': nickname });
+  }
+
+  //회원탈퇴시댓글삭제
+  async deleteCommentsByNickname(nickname: string): Promise<void> {
+    await this.productModel.updateMany(
+      { 'comments.nickname': nickname },
+      { $pull: { comments: { nickname } } },
+    );
+  }
 }
