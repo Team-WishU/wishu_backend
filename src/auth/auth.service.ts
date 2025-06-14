@@ -47,7 +47,12 @@ export class AuthService {
       );
     }
 
-    const payload = { sub: user._id.toString(), email: user.email };
+    const payload = {
+      sub: user._id.toString(),
+      email: user.email,
+      nickname: user.nickname,
+      profileImage: user.profileImage,
+    };
     const accessToken = this.jwtService.sign(payload);
     const refreshToken = this.jwtService.sign(payload, { expiresIn: '30d' });
 
