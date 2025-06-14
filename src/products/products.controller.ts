@@ -13,6 +13,7 @@ import { ProductsService } from './products.service';
 import { CreateProductDto } from './create-product.dto';
 // Express의 Request 타입 사용
 import { Request } from 'express';
+import { Delete } from '@nestjs/common';
 
 @Controller('products')
 export class ProductsController {
@@ -60,5 +61,23 @@ export class ProductsController {
   @Get()
   async getAllProducts(@Query('category') category?: string) {
     return this.productsService.findAll(category);
+  }
+
+  //상품 삭제 <개별>
+  @UseGuards(JwtAuthGuard)
+  @Delete(':id')
+  async deleteProduct(@Param('id') id: string, @Req() req: Request) {
+    const user = req.user as { nickname: string };
+    return this.productsService.deleteProductById(id, user.nickname);
+  }
+  //상품 삭제 < 카테고리 전체 >
+  @UseGuards(JwtAuthGuard)
+  @Delete('category/:category')
+  async deleteByCategory(
+    @Param('category') category: string,
+    @Req() req: Request,
+  ) {
+    const user = req.user as { nickname: string };
+    return this.productsService.deleteByCategory(category, user.nickname);
   }
 }
