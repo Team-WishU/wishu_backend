@@ -9,7 +9,7 @@ export class ProductsService {
   constructor(
     @InjectModel(Product.name) private productModel: Model<ProductDocument>,
   ) {}
-
+  //상품 생성
   async create(
     createProductDto: CreateProductDto & { imageUrl: string },
     user: { nickname: string; profileImage: string },
@@ -18,7 +18,7 @@ export class ProductsService {
       ...createProductDto,
       uploadedBy: user,
     });
-
+    //DB저장장
     const saved = await product.save();
 
     return {
@@ -34,10 +34,12 @@ export class ProductsService {
     };
   }
 
+  //상품 ID로 상세 조회
   async findById(productId: string): Promise<ProductDocument | null> {
     return this.productModel.findById(productId);
   }
 
+  //댓글추가
   async addComment(
     productId: string,
     text: string,
@@ -54,5 +56,10 @@ export class ProductsService {
       { $push: { comments: comment } },
       { new: true },
     );
+  }
+
+  // 상품 전체 목록을 DB에서 조회
+  async findAll(): Promise<Product[]> {
+    return this.productModel.find().exec();
   }
 }
