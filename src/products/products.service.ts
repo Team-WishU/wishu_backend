@@ -13,7 +13,8 @@ export class ProductsService {
   constructor(
     @InjectModel(Product.name) private productModel: Model<ProductDocument>,
   ) {}
-  //상품 생성
+
+  // 상품 생성
   async create(
     createProductDto: CreateProductDto & { imageUrl: string },
     user: { nickname: string; profileImage: string },
@@ -22,7 +23,6 @@ export class ProductsService {
       ...createProductDto,
       uploadedBy: user,
     });
-    //DB저장장
     const saved = await product.save();
 
     return {
@@ -38,12 +38,12 @@ export class ProductsService {
     };
   }
 
-  //상품 ID로 상세 조회
+  // 상품 ID로 상세 조회
   async findById(productId: string): Promise<ProductDocument | null> {
     return this.productModel.findById(productId);
   }
 
-  //댓글추가
+  // 댓글 추가
   async addComment(
     productId: string,
     text: string,
@@ -62,21 +62,50 @@ export class ProductsService {
     );
   }
 
-  // 상품 전체 목록을 DB에서 조회
-  // products.service.ts
+  // 상품 검색
+  async searchProducts(filters: {
+    keyword?: string;
+    tag?: string;
+    brand?: string;
+  }) {
+    const query: any = {};
+
+    if (filters.keyword) {
+      query.$or = [
+        { title: { $regex: filters.keyword, $options: 'i' } },
+        { brand: { $regex: filters.keyword, $options: 'i' } },
+        { category: { $regex: filters.keyword, $options: 'i' } },
+        { tags: { $in: [filters.keyword] } },
+      ];
+    }
+
+    if (filters.tag) {
+      query.tags = { $in: [filters.tag] };
+    }
+
+    if (filters.brand) {
+      query.brand = { $regex: filters.brand, $options: 'i' };
+    }
+
+    const products = await this.productModel.find(query).exec();
+    return { success: true, data: products };
+  }
+
+  // 상품 전체 조회 (카테고리 필터 포함)
   async findAll(category?: string): Promise<Product[]> {
     const query = category ? { category } : {};
     return this.productModel.find(query).sort({ createdAt: -1 }).exec();
   }
 
-  //내 상품 조회
+  // 내 상품 조회
   async findMyProducts(nickname: string): Promise<Product[]> {
     return this.productModel
       .find({ 'uploadedBy.nickname': nickname })
       .sort({ createdAt: -1 })
       .exec();
   }
-  //상품 삭제 <개별>
+
+  // 개별 상품 삭제
   async deleteProductById(
     productId: string,
     nickname: string,
@@ -94,7 +123,8 @@ export class ProductsService {
     await this.productModel.deleteOne({ _id: productId });
     return { message: '상품이 삭제되었습니다.' };
   }
-  //상품 삭제 <카테고리 전체>
+
+  // 카테고리별 상품 삭제
   async deleteByCategory(
     category: string,
     nickname: string,
