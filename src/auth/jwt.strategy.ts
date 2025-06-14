@@ -11,11 +11,20 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       secretOrKey: configService.get<string>('JWT_SECRET_KEY') as string,
     });
   }
+  validate(payload: {
+    sub: string;
+    email: string;
+    nickname: string;
+    profileImage: string;
+  }) {
+    // 로그는 return 위에!
+    console.log('🧠 JWT payload:', payload);
 
-  validate(payload: { sub: string; email: string }) {
     return {
       userId: payload.sub,
       email: payload.email,
+      nickname: payload.nickname,
+      profileImage: payload.profileImage,
     };
   }
 }
