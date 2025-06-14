@@ -123,7 +123,11 @@ export class ProductsService {
       query.brand = { $regex: filters.brand, $options: 'i' };
     }
 
-    const products = await this.productModel.find(query).exec();
+    const products = await this.productModel
+      .find(query)
+      .sort({ createdAt: -1 })
+      .exec();
+
     return { success: true, data: products };
   }
 
