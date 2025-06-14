@@ -62,7 +62,7 @@ export class ProductsService {
     );
   }
 
-  // 🔍 자동완성 검색 (상품명, 브랜드, 태그 기준)
+  //  자동완성 검색 (상품명, 브랜드, 태그 기준)
   async getAutoCompleteKeywords(input: string): Promise<string[]> {
     const regex = new RegExp(`^${input}`, 'i');
 
@@ -95,7 +95,6 @@ export class ProductsService {
     }
 
     const result = Array.from(uniqueMap.values()).slice(0, 10);
-    console.log('✅ 자동완성 응답:', result);
     return result;
   }
 
