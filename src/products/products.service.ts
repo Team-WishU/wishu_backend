@@ -70,17 +70,33 @@ export class ProductsService {
       $or: [{ title: regex }, { brand: regex }, { tags: regex }],
     });
 
-    const titles = products.map((p) => p.title);
-    const brands = products.map((p) => p.brand);
-    const tags = products.flatMap((p) => p.tags || []);
+    const suggestions: { value: string; type: string }[] = [];
 
-    const all = [...titles, ...brands, ...tags];
-    const filtered = all.filter((value) =>
-      value?.toLowerCase().startsWith(input.toLowerCase()),
-    );
+    for (const p of products) {
+      if (p.title?.toLowerCase().startsWith(input.toLowerCase())) {
+        suggestions.push({ value: p.title, type: '상품명' });
+      }
+      if (p.brand?.toLowerCase().startsWith(input.toLowerCase())) {
+        suggestions.push({ value: p.brand, type: '브랜드' });
+      }
+      for (const tag of p.tags || []) {
+        if (tag?.toLowerCase().startsWith(input.toLowerCase())) {
+          suggestions.push({ value: tag, type: '태그' });
+        }
+      }
+    }
 
-    const unique = [...new Set(filtered)];
-    return unique.slice(0, 10); // 최대 10개 반환
+    const uniqueMap = new Map<string, string>();
+    for (const s of suggestions) {
+      const key = `${s.type}-${s.value}`;
+      if (!uniqueMap.has(key)) {
+        uniqueMap.set(key, `[${s.type}] ${s.value}`);
+      }
+    }
+
+    const result = Array.from(uniqueMap.values()).slice(0, 10);
+    console.log('✅ 자동완성 응답:', result);
+    return result;
   }
 
   // 검색
