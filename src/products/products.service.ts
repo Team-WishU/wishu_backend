@@ -64,4 +64,12 @@ export class ProductsService {
     const query = category ? { category } : {};
     return this.productModel.find(query).sort({ createdAt: -1 }).exec();
   }
+
+  //내 상품 조회
+  async findMyProducts(nickname: string): Promise<Product[]> {
+    return this.productModel
+      .find({ 'uploadedBy.nickname': nickname })
+      .sort({ createdAt: -1 })
+      .exec();
+  }
 }

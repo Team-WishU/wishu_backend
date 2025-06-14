@@ -30,6 +30,13 @@ export class ProductsController {
     const user = req.user as { nickname: string; profileImage: string };
     return this.productsService.create(createProductDto, user);
   }
+  @UseGuards(JwtAuthGuard)
+  @Get('my')
+  async getMyProducts(@Req() req: Request) {
+    console.log('req.user ::: ', req.user);
+    const user = req.user as { nickname: string };
+    return this.productsService.findMyProducts(user.nickname);
+  }
 
   // 상품 상세 조회: GET /products/:id
   @Get(':id')
