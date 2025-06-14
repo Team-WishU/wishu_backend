@@ -55,4 +55,27 @@ export class ProductsService {
       { new: true },
     );
   }
+
+  async searchProducts(filters: {
+    keyword?: string;
+    tag?: string;
+    brand?: string;
+  }) {
+    const query: any = {};
+
+    if (filters.keyword) {
+      query.title = { $regex: filters.keyword, $options: 'i' };
+    }
+
+    if (filters.tag) {
+      query.tags = filters.tag;
+    }
+
+    if (filters.brand) {
+      query.brand = filters.brand;
+    }
+
+    const products = await this.productModel.find(query).exec();
+    return { success: true, data: products };
+  }
 }

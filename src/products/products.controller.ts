@@ -6,6 +6,7 @@ import {
   Req,
   Get,
   Param,
+  Query,
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { ProductsService } from './products.service';
@@ -15,6 +16,16 @@ import { Request } from 'express';
 @Controller('products')
 export class ProductsController {
   constructor(private readonly productsService: ProductsService) {}
+
+  // ✅ 검색 라우터
+  @Get('search')
+  async searchProducts(
+    @Query('keyword') keyword?: string,
+    @Query('tag') tag?: string,
+    @Query('brand') brand?: string,
+  ) {
+    return this.productsService.searchProducts({ keyword, tag, brand });
+  }
 
   @UseGuards(JwtAuthGuard)
   @Post()
