@@ -14,7 +14,6 @@ export class ProductsService {
     @InjectModel(Product.name) private productModel: Model<ProductDocument>,
   ) {}
 
-  // 상품 생성
   async create(
     createProductDto: CreateProductDto & { imageUrl: string },
     user: { nickname: string; profileImage: string },
@@ -38,12 +37,25 @@ export class ProductsService {
     };
   }
 
-  // 상품 ID로 상세 조회
+  async updateProductById(
+    productId: string,
+    updateData: CreateProductDto & { imageUrl: string },
+    nickname: string,
+  ): Promise<{ message: string }> {
+    const product = await this.productModel.findById(productId);
+    if (!product) throw new NotFoundException('상품을 찾을 수 없습니다.');
+    if (product.uploadedBy.nickname !== nickname)
+      throw new ForbiddenException('수정 권한이 없습니다.');
+
+    await this.productModel.updateOne({ _id: productId }, updateData);
+
+    return { message: '상품이 성공적으로 수정되었습니다.' };
+  }
+
   async findById(productId: string): Promise<ProductDocument | null> {
     return this.productModel.findById(productId);
   }
 
-  // 댓글 추가
   async addComment(
     productId: string,
     text: string,
@@ -62,10 +74,8 @@ export class ProductsService {
     );
   }
 
-  //  자동완성 검색 (상품명, 브랜드, 태그 기준)
   async getAutoCompleteKeywords(input: string): Promise<string[]> {
     const regex = new RegExp(`^${input}`, 'i');
-
     const products = await this.productModel.find({
       $or: [{ title: regex }, { brand: regex }, { tags: regex }],
     });
@@ -94,11 +104,9 @@ export class ProductsService {
       }
     }
 
-    const result = Array.from(uniqueMap.values()).slice(0, 10);
-    return result;
+    return Array.from(uniqueMap.values()).slice(0, 10);
   }
 
-  // 검색
   async searchProducts(filters: {
     keyword?: string;
     tag?: string;
@@ -131,13 +139,11 @@ export class ProductsService {
     return { success: true, data: products };
   }
 
-  // 전체 조회
   async findAll(category?: string): Promise<Product[]> {
     const query = category ? { category } : {};
     return this.productModel.find(query).sort({ createdAt: -1 }).exec();
   }
 
-  // 내 상품 조회
   async findMyProducts(nickname: string): Promise<Product[]> {
     return this.productModel
       .find({ 'uploadedBy.nickname': nickname })
@@ -145,23 +151,19 @@ export class ProductsService {
       .exec();
   }
 
-  // 상품 삭제 (개별)
   async deleteProductById(
     productId: string,
     nickname: string,
   ): Promise<{ message: string }> {
     const product = await this.productModel.findById(productId);
-    if (!product) {
-      throw new NotFoundException('상품을 찾을 수 없습니다.');
-    }
-    if (product.uploadedBy.nickname !== nickname) {
+    if (!product) throw new NotFoundException('상품을 찾을 수 없습니다.');
+    if (product.uploadedBy.nickname !== nickname)
       throw new ForbiddenException('삭제 권한이 없습니다.');
-    }
+
     await this.productModel.deleteOne({ _id: productId });
     return { message: '상품이 삭제되었습니다.' };
   }
 
-  // 카테고리별 삭제
   async deleteByCategory(
     category: string,
     nickname: string,
@@ -175,11 +177,9 @@ export class ProductsService {
   }
 
   async deleteByOwner(nickname: string): Promise<void> {
-    console.log('[회원 탈퇴 삭제] nickname:', nickname);
     await this.productModel.deleteMany({ 'uploadedBy.nickname': nickname });
   }
 
-  //회원탈퇴시댓글삭제
   async deleteCommentsByNickname(nickname: string): Promise<void> {
     await this.productModel.updateMany(
       { 'comments.nickname': nickname },
@@ -187,24 +187,18 @@ export class ProductsService {
     );
   }
 
-  // 찜한 상품 저장
   async saveProductForUser(productId: string, nickname: string): Promise<any> {
     const product = await this.productModel.findById(productId);
-    if (!product) {
-      throw new NotFoundException('상품을 찾을 수 없습니다.');
-    }
+    if (!product) throw new NotFoundException('상품을 찾을 수 없습니다.');
 
-    // 찜 전용 필드 없으면 별도 collection 추천 (예: Wishlist)
-    // 여기서는 product에 'savedBy' 배열 필드 있다고 가정
     await this.productModel.updateOne(
       { _id: productId },
-      { $addToSet: { savedBy: nickname } }, // 중복 방지
+      { $addToSet: { savedBy: nickname } },
     );
 
     return { message: '상품이 찜 목록에 추가되었습니다.' };
   }
 
-  // 내가 찜한 상품 목록 가져오기 (카테고리별 그룹화)
   async getSavedProducts(nickname: string): Promise<{
     [category: string]: Product[];
   }> {
@@ -212,46 +206,35 @@ export class ProductsService {
       .find({ savedBy: nickname })
       .sort({ createdAt: -1 });
 
-    // 카테고리별 그룹핑
     const grouped: { [category: string]: Product[] } = {};
     for (const product of savedProducts) {
       const category = product.category || '기타';
-      if (!grouped[category]) {
-        grouped[category] = [];
-      }
+      if (!grouped[category]) grouped[category] = [];
       grouped[category].push(product);
     }
 
     return grouped;
   }
-  // 찜한 상품 중 특정 카테고리 전체 삭제
+
   async deleteSavedByCategory(
     category: string,
     nickname: string,
   ): Promise<{ deletedCount: number }> {
     const result = await this.productModel.updateMany(
-      {
-        category,
-        savedBy: nickname,
-      },
-      {
-        $pull: { savedBy: nickname },
-      },
+      { category, savedBy: nickname },
+      { $pull: { savedBy: nickname } },
     );
 
     return { deletedCount: result.modifiedCount };
   }
-  // 찜한 상품 개별 삭제
+
   async deleteSavedProduct(
     productId: string,
     nickname: string,
   ): Promise<{ message: string }> {
     const product = await this.productModel.findById(productId);
-    if (!product) {
-      throw new NotFoundException('상품을 찾을 수 없습니다.');
-    }
+    if (!product) throw new NotFoundException('상품을 찾을 수 없습니다.');
 
-    // 찜 목록에서 유저 제거
     await this.productModel.updateOne(
       { _id: productId },
       { $pull: { savedBy: nickname } },
