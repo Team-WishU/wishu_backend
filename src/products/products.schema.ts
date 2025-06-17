@@ -53,6 +53,9 @@ export class Product {
     nickname: string;
     profileImage: string;
   }[];
+  // ✅ 찜한 사용자 닉네임들
+  @Prop({ type: [String], default: [] })
+  savedBy: string[];
 }
 
 export const ProductSchema = SchemaFactory.createForClass(Product);

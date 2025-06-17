@@ -186,4 +186,77 @@ export class ProductsService {
       { $pull: { comments: { nickname } } },
     );
   }
+
+  // 찜한 상품 저장
+  async saveProductForUser(productId: string, nickname: string): Promise<any> {
+    const product = await this.productModel.findById(productId);
+    if (!product) {
+      throw new NotFoundException('상품을 찾을 수 없습니다.');
+    }
+
+    // 찜 전용 필드 없으면 별도 collection 추천 (예: Wishlist)
+    // 여기서는 product에 'savedBy' 배열 필드 있다고 가정
+    await this.productModel.updateOne(
+      { _id: productId },
+      { $addToSet: { savedBy: nickname } }, // 중복 방지
+    );
+
+    return { message: '상품이 찜 목록에 추가되었습니다.' };
+  }
+
+  // 내가 찜한 상품 목록 가져오기 (카테고리별 그룹화)
+  async getSavedProducts(nickname: string): Promise<{
+    [category: string]: Product[];
+  }> {
+    const savedProducts = await this.productModel
+      .find({ savedBy: nickname })
+      .sort({ createdAt: -1 });
+
+    // 카테고리별 그룹핑
+    const grouped: { [category: string]: Product[] } = {};
+    for (const product of savedProducts) {
+      const category = product.category || '기타';
+      if (!grouped[category]) {
+        grouped[category] = [];
+      }
+      grouped[category].push(product);
+    }
+
+    return grouped;
+  }
+  // 찜한 상품 중 특정 카테고리 전체 삭제
+  async deleteSavedByCategory(
+    category: string,
+    nickname: string,
+  ): Promise<{ deletedCount: number }> {
+    const result = await this.productModel.updateMany(
+      {
+        category,
+        savedBy: nickname,
+      },
+      {
+        $pull: { savedBy: nickname },
+      },
+    );
+
+    return { deletedCount: result.modifiedCount };
+  }
+  // 찜한 상품 개별 삭제
+  async deleteSavedProduct(
+    productId: string,
+    nickname: string,
+  ): Promise<{ message: string }> {
+    const product = await this.productModel.findById(productId);
+    if (!product) {
+      throw new NotFoundException('상품을 찾을 수 없습니다.');
+    }
+
+    // 찜 목록에서 유저 제거
+    await this.productModel.updateOne(
+      { _id: productId },
+      { $pull: { savedBy: nickname } },
+    );
+
+    return { message: '찜 목록에서 상품이 삭제되었습니다.' };
+  }
 }

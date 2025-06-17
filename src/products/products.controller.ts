@@ -95,4 +95,37 @@ export class ProductsController {
     const user = req.user as { nickname: string };
     return this.productsService.deleteByCategory(category, user.nickname);
   }
+
+  // 다른 사용자가 올린 상품 찜하기
+  @UseGuards(JwtAuthGuard)
+  @Post(':id/save')
+  async saveProduct(@Param('id') id: string, @Req() req: Request) {
+    const user = req.user as { nickname: string };
+    return this.productsService.saveProductForUser(id, user.nickname);
+  }
+
+  // 내가 찜한 상품 목록 조회
+  @UseGuards(JwtAuthGuard)
+  @Get('saved/my')
+  async getSavedProducts(@Req() req: Request) {
+    const user = req.user as { nickname: string };
+    return this.productsService.getSavedProducts(user.nickname);
+  }
+  // 찜한 상품 중 특정 카테고리 전체 삭제
+  @UseGuards(JwtAuthGuard)
+  @Delete('saved/category/:category')
+  async deleteSavedByCategory(
+    @Param('category') category: string,
+    @Req() req: Request,
+  ) {
+    const user = req.user as { nickname: string };
+    return this.productsService.deleteSavedByCategory(category, user.nickname);
+  }
+  // 찜한 상품 개별 삭제
+  @UseGuards(JwtAuthGuard)
+  @Delete(':id/save')
+  async deleteSavedProduct(@Param('id') id: string, @Req() req: Request) {
+    const user = req.user as { nickname: string };
+    return this.productsService.deleteSavedProduct(id, user.nickname);
+  }
 }
