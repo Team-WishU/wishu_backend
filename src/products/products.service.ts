@@ -242,4 +242,8 @@ export class ProductsService {
 
     return { message: '찜 목록에서 상품이 삭제되었습니다.' };
   }
+
+  async findByTag(tag: string): Promise<Product[]> {
+    return this.productModel.find({ tags: tag }).lean();
+  }
 }
