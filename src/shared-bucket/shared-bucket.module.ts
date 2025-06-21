@@ -14,7 +14,7 @@ import { FriendsModule } from '../friends/friends.module';
       { name: Product.name, schema: ProductSchema },
     ]),
     UsersModule,
-    forwardRef(() => FriendsModule), // 추가
+    forwardRef(() => FriendsModule),
   ],
   controllers: [SharedBucketController],
   providers: [SharedBucketService],
