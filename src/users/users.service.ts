@@ -6,7 +6,7 @@ import {
   forwardRef,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model, Types } from 'mongoose';
+import { Model } from 'mongoose';
 import * as bcrypt from 'bcryptjs';
 
 import { CreateUserDto } from './create-user.dto';
@@ -30,28 +30,6 @@ export class UsersService {
     @Inject(forwardRef(() => CommentsService))
     private readonly commentsService: CommentsService,
   ) {}
-
-  /**
-   * 여러 유저 ID로 간단한 유저 정보(nickname, profileImage 등) 조회
-   */
-  async findUsersByIds(
-    userIds: string[],
-  ): Promise<{ _id: string; nickname: string; profileImage: string }[]> {
-    if (!userIds || userIds.length === 0) return [];
-    const users = await this.userModel
-      .find({ _id: { $in: userIds } })
-      .select('_id nickname profileImage')
-      .lean();
-
-    return users.map((user) => ({
-      _id:
-        typeof user._id === 'string'
-          ? user._id
-          : (user._id as Types.ObjectId).toHexString(),
-      nickname: user.nickname || 'unknown',
-      profileImage: user.profileImage || 'default.png',
-    }));
-  }
 
   /**
    * 회원가입: 이메일 인증 확인 → 중복 확인 → 저장 → 인증 레코드 삭제
@@ -94,15 +72,6 @@ export class UsersService {
   /** 프로필 조회 (비밀번호 제외) */
   async findById(userId: string): Promise<User> {
     const user = await this.userModel.findById(userId).select('-password');
-    if (!user) {
-      throw new NotFoundException('사용자를 찾을 수 없습니다.');
-    }
-    return user;
-  }
-
-  /** 닉네임으로 유저 조회 (비밀번호 제외) */
-  async findByNickname(nickname: string): Promise<User> {
-    const user = await this.userModel.findOne({ nickname }).select('-password');
     if (!user) {
       throw new NotFoundException('사용자를 찾을 수 없습니다.');
     }

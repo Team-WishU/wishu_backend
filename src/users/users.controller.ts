@@ -7,7 +7,6 @@ import {
   Patch,
   UseGuards,
   Request,
-  Param,
 } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { CreateUserDto } from './create-user.dto';
@@ -43,15 +42,5 @@ export class UsersController {
   @Patch('me')
   updateMe(@Request() req: { user: JwtPayload }, @Body() dto: UpdateUserDto) {
     return this.usersService.updateUser(req.user.userId, dto);
-  }
-
-  @Get(':id')
-  getUserById(@Param('id') id: string) {
-    return this.usersService.findById(id);
-  }
-
-  @Get('nickname/:nickname')
-  getUserByNickname(@Param('nickname') nickname: string) {
-    return this.usersService.findByNickname(nickname);
   }
 }
