@@ -1,5 +1,5 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document } from 'mongoose';
+import { Document, Types } from 'mongoose';
 
 export type UserDocument = User & Document;
 
@@ -44,6 +44,21 @@ export class User {
     ],
   })
   profileImage: string;
+
+  @Prop({ type: [{ type: Types.ObjectId, ref: 'User' }], default: [] })
+  friends: Types.ObjectId[];
+
+  @Prop({
+    type: {
+      incoming: [{ type: Types.ObjectId, ref: 'User' }],
+      outgoing: [{ type: Types.ObjectId, ref: 'User' }],
+    },
+    default: { incoming: [], outgoing: [] },
+  })
+  friendRequests: {
+    incoming: Types.ObjectId[];
+    outgoing: Types.ObjectId[];
+  };
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);
