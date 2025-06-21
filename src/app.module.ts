@@ -36,7 +36,8 @@ export class AppModule implements NestModule {
   private readonly isDev: boolean =
     process.env.NODE_ENV === 'dev' ? true : false;
   configure() {
-    mongoose.set('debug', this.isDev); //몽구스 쿼리 logger
+    //몽구스 쿼리 logger
+    mongoose.set('debug', this.isDev);
   }
 }
 /* 실무방식 ConfigService
