@@ -246,4 +246,18 @@ export class ProductsService {
   async findByTag(tag: string): Promise<Product[]> {
     return this.productModel.find({ tags: tag }).lean();
   }
+
+  async findByKeywords(keywords: string[]): Promise<Product[]> {
+    if (!keywords || keywords.length === 0) return [];
+
+    const regexConditions = keywords.map((kw) => ({
+      $or: [
+        { title: { $regex: kw, $options: 'i' } },
+        { description: { $regex: kw, $options: 'i' } },
+        { tags: { $regex: kw, $options: 'i' } },
+      ],
+    }));
+
+    return this.productModel.find({ $or: regexConditions }).limit(10).exec();
+  }
 }
