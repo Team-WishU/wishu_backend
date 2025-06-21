@@ -8,6 +8,12 @@ import { Product, ProductDocument } from './products.schema';
 import { CreateProductDto } from './create-product.dto';
 import { Model } from 'mongoose';
 
+interface SearchFilters {
+  keyword?: string;
+  tag?: string;
+  brand?: string;
+}
+
 @Injectable()
 export class ProductsService {
   constructor(
@@ -16,11 +22,15 @@ export class ProductsService {
 
   async create(
     createProductDto: CreateProductDto & { imageUrl: string },
-    user: { nickname: string; profileImage: string },
+    user: { _id: string; nickname: string; profileImage: string },
   ) {
     const product = new this.productModel({
       ...createProductDto,
-      uploadedBy: user,
+      uploadedBy: {
+        _id: user._id,
+        nickname: user.nickname,
+        profileImage: user.profileImage,
+      },
     });
     const saved = await product.save();
 
@@ -107,12 +117,8 @@ export class ProductsService {
     return Array.from(uniqueMap.values()).slice(0, 10);
   }
 
-  async searchProducts(filters: {
-    keyword?: string;
-    tag?: string;
-    brand?: string;
-  }) {
-    const query: any = {};
+  async searchProducts(filters: SearchFilters) {
+    const query: Record<string, any> = {};
 
     if (filters.keyword) {
       query.$or = [
@@ -243,7 +249,15 @@ export class ProductsService {
     return { message: '찜 목록에서 상품이 삭제되었습니다.' };
   }
 
-  async findByTag(tag: string): Promise<Product[]> {
-    return this.productModel.find({ tags: tag }).lean();
+  async findByUserId(userId: string): Promise<ProductDocument[]> {
+    return this.productModel.find({ 'uploadedBy._id': userId }).exec();
+  }
+
+  async findByTag(tag: string): Promise<ProductDocument[]> {
+    return this.productModel.find({ tags: tag }).exec();
+  }
+
+  async findByNickname(nickname: string): Promise<ProductDocument[]> {
+    return this.productModel.find({ 'uploadedBy.nickname': nickname }).exec();
   }
 }

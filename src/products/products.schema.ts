@@ -28,11 +28,14 @@ export class Product {
 
   @Prop({
     type: {
+      _id: { type: String, required: true },
       nickname: String,
       profileImage: String,
     },
+    required: true,
   })
   uploadedBy: {
+    _id: string;
     nickname: string;
     profileImage: string;
   };
@@ -43,7 +46,6 @@ export class Product {
         text: { type: String, required: true },
         nickname: { type: String, required: true },
         profileImage: { type: String, required: true },
-        // createdAt 제거됨
       },
     ],
     default: [],
@@ -53,7 +55,7 @@ export class Product {
     nickname: string;
     profileImage: string;
   }[];
-  // ✅ 찜한 사용자 닉네임들
+
   @Prop({ type: [String], default: [] })
   savedBy: string[];
 }
