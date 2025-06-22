@@ -16,6 +16,8 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 interface JwtPayload {
   userId: string;
   email: string;
+  nickname: string;
+  profileImage: string;
 }
 
 @Controller('users')

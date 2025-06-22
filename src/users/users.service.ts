@@ -75,6 +75,7 @@ export class UsersService {
     if (!user) {
       throw new NotFoundException('사용자를 찾을 수 없습니다.');
     }
+    console.log('[🔍 findById] 사용자 정보:', user);
     return user;
   }
 

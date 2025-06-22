@@ -244,7 +244,7 @@ export class ProductsService {
   }
 
   async findByTag(tag: string): Promise<Product[]> {
-    return this.productModel.find({ tags: tag }).lean();
+    return this.productModel.find({ tags: { $in: [tag] } }).lean();
   }
 
   async findByKeywords(keywords: string[]): Promise<Product[]> {
@@ -259,5 +259,31 @@ export class ProductsService {
     }));
 
     return this.productModel.find({ $or: regexConditions }).limit(10).exec();
+  }
+
+  // 사용자 태그 가져오기
+  async getUserWishTags(nickname: string): Promise<string[]> {
+    const products = await this.productModel
+      .find({ 'uploadedBy.nickname': nickname }) // 사용자가 올린 상품들
+      .select('tags')
+      .lean();
+
+    const tagSet = new Set<string>();
+    for (const product of products) {
+      for (const tag of product.tags || []) {
+        tagSet.add(tag);
+      }
+    }
+
+    return Array.from(tagSet);
+  }
+
+  async findByTagAndCategory(tag: string, category: string) {
+    return this.productModel
+      .find({
+        tags: tag,
+        category: category,
+      })
+      .exec();
   }
 }
