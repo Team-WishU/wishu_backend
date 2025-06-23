@@ -18,11 +18,8 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     nickname: string;
     profileImage: string;
   }) {
-    console.log('🧠 JWT payload:', payload);
-
     return {
       _id: payload.sub,
-      userId: payload.sub,
       email: payload.email,
       nickname: payload.nickname,
       profileImage: payload.profileImage,

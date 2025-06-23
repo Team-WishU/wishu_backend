@@ -6,6 +6,9 @@ export type CommentDocument = Comment & Document;
 @Schema()
 export class Comment {
   @Prop({ required: true })
+  userId: string;
+
+  @Prop({ required: true })
   text: string;
 
   @Prop({ required: true })

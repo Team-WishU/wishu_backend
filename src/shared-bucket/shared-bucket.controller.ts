@@ -7,6 +7,7 @@ import {
   Req,
   UseGuards,
   Query,
+  UnauthorizedException,
 } from '@nestjs/common';
 import { SharedBucketService, UserPayload } from './shared-bucket.service';
 import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
@@ -19,15 +20,22 @@ export class SharedBucketController {
   @UseGuards(JwtAuthGuard)
   @Get('wishlist')
   async getSharedWishlist(
-    @Query('user1') user1: string,
-    @Query('user2') user2: string,
+    @Query('friendId') friendId: string,
+    @Req() req: Request,
   ) {
+    const user = req.user as UserPayload | undefined;
+    if (!user || !user._id) {
+      throw new UnauthorizedException('로그인 정보가 올바르지 않습니다.');
+    }
+
     const { items, collaborators } =
-      await this.sharedBucketService.getSharedWishlist(user1, user2);
+      await this.sharedBucketService.getSharedWishlist(user._id, friendId);
+
     const bucket = await this.sharedBucketService.getOrCreateSharedBucket(
-      user1,
-      user2,
+      user._id,
+      friendId,
     );
+
     return {
       bucketId: bucket._id,
       collaborators,
@@ -42,7 +50,10 @@ export class SharedBucketController {
     @Body('text') text: string,
     @Req() req: Request,
   ) {
-    const user = req.user as UserPayload;
+    const user = req.user as UserPayload | undefined;
+    if (!user || !user._id) {
+      throw new UnauthorizedException('로그인 정보가 올바르지 않습니다.');
+    }
     return this.sharedBucketService.addComment(bucketId, user, text);
   }
 
@@ -54,10 +65,10 @@ export class SharedBucketController {
   @UseGuards(JwtAuthGuard)
   @Get('my')
   async getMySharedBuckets(@Req() req: Request) {
-    // JwtStrategy에서 payload.sub을 userId로 바꿔서 넣으므로 userId로 접근!
-    const user = req.user as { userId?: string };
-    const userId = user.userId;
-    if (!userId) throw new Error('userId가 JWT payload에 없음!');
-    return this.sharedBucketService.findBucketsByUserId(userId);
+    const user = req.user as UserPayload | undefined;
+    if (!user || !user._id) {
+      throw new UnauthorizedException('로그인 정보가 올바르지 않습니다.');
+    }
+    return this.sharedBucketService.findBucketsByUserId(user._id);
   }
 }

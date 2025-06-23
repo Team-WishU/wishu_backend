@@ -16,7 +16,7 @@ import {
   EmailVerificationDocument,
 } from '../email-verification/email-verification.schema';
 import { ProductsService } from '../products/products.service';
-import { CommentsService } from '../comments/comments.service';
+import { SharedBucketService } from '../shared-bucket/shared-bucket.service';
 
 @Injectable()
 export class UsersService {
@@ -27,13 +27,10 @@ export class UsersService {
     private readonly evModel: Model<EmailVerificationDocument>,
     @Inject(forwardRef(() => ProductsService))
     private readonly productsService: ProductsService,
-    @Inject(forwardRef(() => CommentsService))
-    private readonly commentsService: CommentsService,
+    @Inject(forwardRef(() => SharedBucketService))
+    private readonly sharedBucketService: SharedBucketService,
   ) {}
 
-  /**
-   * 여러 유저 ID로 간단한 유저 정보(nickname, profileImage 등) 조회
-   */
   async findUsersByIds(
     userIds: string[],
   ): Promise<{ _id: string; nickname: string; profileImage: string }[]> {
@@ -53,9 +50,6 @@ export class UsersService {
     }));
   }
 
-  /**
-   * 회원가입: 이메일 인증 확인 → 중복 확인 → 저장 → 인증 레코드 삭제
-   */
   async register(createUserDto: CreateUserDto): Promise<User> {
     const { email, nickname, password } = createUserDto;
 
@@ -85,13 +79,11 @@ export class UsersService {
     return saved;
   }
 
-  /** 닉네임 중복 체크 */
   async checkNickname(nickname: string): Promise<{ isAvailable: boolean }> {
     const exists = await this.userModel.exists({ nickname });
     return { isAvailable: !exists };
   }
 
-  /** 프로필 조회 (비밀번호 제외) */
   async findById(userId: string): Promise<User> {
     const user = await this.userModel.findById(userId).select('-password');
     if (!user) {
@@ -100,7 +92,6 @@ export class UsersService {
     return user;
   }
 
-  /** 닉네임으로 유저 조회 (비밀번호 제외) */
   async findByNickname(nickname: string): Promise<User> {
     const user = await this.userModel.findOne({ nickname }).select('-password');
     if (!user) {
@@ -109,7 +100,6 @@ export class UsersService {
     return user;
   }
 
-  /** 프로필 수정 (닉네임, 프로필 이미지만 가능) */
   async updateUser(
     userId: string,
     updates: Partial<Pick<User, 'nickname' | 'profileImage'>>,
@@ -122,12 +112,31 @@ export class UsersService {
 
   /** 회원 탈퇴 */
   async deleteUser(userId: string): Promise<void> {
-    const user = await this.userModel.findById(userId);
-    if (!user) throw new NotFoundException('사용자를 찾을 수 없습니다.');
+    // 1. 내가 올린 상품 모두 삭제
+    await this.productsService.deleteByOwner(userId);
 
-    await this.commentsService.deleteByUser(userId); // 댓글 삭제
-    await this.productsService.deleteByOwner(user.nickname); // 상품 삭제
-    await this.productsService.deleteCommentsByNickname(user.nickname); // 댓글 제거 추가
-    await this.userModel.findByIdAndDelete(userId); // 유저 삭제
+    // 2. 내가 남의 상품에 단 댓글 모두 삭제
+    await this.productsService.deleteCommentsByUserId(userId);
+
+    // 3. 모든 상품의 savedBy에서 내 userId 제거 (찜기록에서 삭제)
+    await this.productsService.deleteSavedByUser(userId);
+
+    // 4. 내가 포함된 모든 공유 위시버킷 삭제
+    await this.sharedBucketService.deleteBucketsByUser(userId);
+
+    // 5. 모든 유저에서 friends/요청 목록에서 내 userId 제거
+    await this.userModel.updateMany(
+      {},
+      {
+        $pull: {
+          friends: userId,
+          'friendRequests.incoming': userId,
+          'friendRequests.outgoing': userId,
+        },
+      },
+    );
+
+    // 6. 내 유저 정보 삭제
+    await this.userModel.findByIdAndDelete(userId);
   }
 }

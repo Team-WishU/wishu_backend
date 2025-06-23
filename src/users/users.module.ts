@@ -1,5 +1,4 @@
 import { Module, forwardRef } from '@nestjs/common';
-import { MongooseModule } from '@nestjs/mongoose';
 import { UsersController } from './users.controller';
 import { UsersService } from './users.service';
 import { User, UserSchema } from './users.schema';
@@ -9,7 +8,8 @@ import {
 } from '../email-verification/email-verification.schema';
 import { AuthModule } from '../auth/auth.module';
 import { ProductsModule } from '../products/products.module';
-import { CommentsModule } from '../comments/comments.module';
+import { SharedBucketModule } from '../shared-bucket/shared-bucket.module';
+import { MongooseModule } from '@nestjs/mongoose';
 
 @Module({
   imports: [
@@ -19,7 +19,7 @@ import { CommentsModule } from '../comments/comments.module';
     ]),
     forwardRef(() => AuthModule),
     forwardRef(() => ProductsModule),
-    forwardRef(() => CommentsModule),
+    forwardRef(() => SharedBucketModule),
   ],
   controllers: [UsersController],
   providers: [UsersService],

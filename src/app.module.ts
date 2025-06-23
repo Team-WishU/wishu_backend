@@ -4,8 +4,6 @@ import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
 import { ProductsModule } from './products/products.module';
-import { CommentsModule } from './comments/comments.module';
-import { WishlistModule } from './wishlist/wishlist.module';
 import { ChatbotModule } from './chatbot/chatbot.module';
 import { CommonModule } from './common/common.module';
 import { MongooseModule } from '@nestjs/mongoose';
@@ -14,13 +12,12 @@ import { FriendsModule } from './friends/friends.module';
 import mongoose from 'mongoose';
 import { EmailVerificationModule } from './email-verification/email-verification.module';
 import { SharedBucketModule } from './shared-bucket/shared-bucket.module';
+
 @Module({
   imports: [
     AuthModule,
     UsersModule,
     ProductsModule,
-    CommentsModule,
-    WishlistModule,
     ChatbotModule,
     CommonModule,
     EmailVerificationModule,
@@ -40,17 +37,3 @@ export class AppModule implements NestModule {
     mongoose.set('debug', this.isDev);
   }
 }
-/* 실무방식 ConfigService
-import { ConfigService } from '@nestjs/config';
-
-imports: [
-  ConfigModule.forRoot({ isGlobal: true }),
-  MongooseModule.forRootAsync({
-    useFactory: (configService: ConfigService) => ({
-      uri: configService.get<string>('MONGODB_URI'),
-    }),
-    inject: [ConfigService],
-  }),
-  ...
-],
- */

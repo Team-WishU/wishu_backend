@@ -10,7 +10,6 @@ import { Model, Types } from 'mongoose';
 import * as bcrypt from 'bcryptjs';
 import { UsersService } from '../users/users.service';
 
-// UserDocument 인터페이스 정의
 interface UserDocument {
   _id: Types.ObjectId;
   email: string;
@@ -61,7 +60,7 @@ export class AuthService {
     }
 
     const payload = {
-      sub: user._id.toString(),
+      sub: user._id.toString(), // JWT 표준 sub 필드
       email: user.email,
       nickname: user.nickname,
       profileImage: user.profileImage,
@@ -78,7 +77,7 @@ export class AuthService {
         nickname: user.nickname,
         profileImage: user.profileImage,
         name: user.name,
-        birthDate: user.birthDate.toISOString().split('T')[0], // YYYY-MM-DD
+        birthDate: user.birthDate.toISOString().split('T')[0],
         gender: user.gender,
       },
     };
