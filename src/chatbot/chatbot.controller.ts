@@ -14,12 +14,12 @@ export class ChatbotController {
   @UseGuards(JwtAuthGuard)
   @Post('message')
   async handleMessage(
-    @Body('message') message: string,
+    @Body() body: any,
     @Req() req: Request,
   ): Promise<{ success: boolean; messages: unknown[] }> {
-    // 토큰에서 추출된 유저 정보
     const user = req.user as { _id: string } | undefined;
     const userId = user?._id;
+
     if (!userId) {
       return {
         success: false,
@@ -27,8 +27,19 @@ export class ChatbotController {
       };
     }
 
+    const message = body?.message;
+    console.log('📨 [ChatbotController] 받은 message:', message);
+
+    if (typeof message !== 'string' || message.trim().length === 0) {
+      return {
+        success: false,
+        messages: [{ type: 'bot', content: '메시지를 입력해 주세요!' }],
+      };
+    }
+
     const prevState = this.chatbotService.getUserState(userId);
     const mergedState: ChatbotState = {
+      ...body?.state,
       ...prevState,
       userId,
     };
@@ -46,7 +57,7 @@ export class ChatbotController {
     }
 
     const { reply, newState } = result;
-    this.chatbotService.setUserState(userId, newState);
+    this.chatbotService.setUserState(userId, result.newState);
 
     return { success: true, messages: reply };
   }

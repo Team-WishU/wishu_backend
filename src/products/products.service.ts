@@ -319,8 +319,9 @@ export class ProductsService {
   }
 
   async getUserSavedTags(userId: string): Promise<string[]> {
+    const userIdStr = userId.toString();
     const products = await this.productModel
-      .find({ savedBy: userId })
+      .find({ savedBy: userIdStr })
       .select('tags')
       .lean();
 
