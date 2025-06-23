@@ -1,19 +1,30 @@
 import { Injectable } from '@nestjs/common';
 import { ProductsService } from '../products/products.service';
 
-interface ChatbotResponse {
-  reply: {
-    type: 'bot' | 'product';
-    content?: string;
-    buttons?: { id: string; label: string }[];
-    products?: any[];
-  }[];
-  newState: any;
+export interface ChatbotState {
+  step: string;
+  userId: string;
+  lastTag?: string;
+  currentCategory?: string;
+  remainingTags?: string[];
+  userTags?: string[];
+}
+
+export interface ChatbotReply {
+  type: 'bot' | 'product';
+  content?: string;
+  buttons?: { id: string; label: string }[];
+  products?: unknown[];
+}
+
+export interface ChatbotResponse {
+  reply: ChatbotReply[];
+  newState: ChatbotState;
 }
 
 @Injectable()
 export class ChatbotService {
-  private userStates = new Map<string, any>();
+  private userStates = new Map<string, ChatbotState>();
 
   constructor(private readonly productsService: ProductsService) {}
 
@@ -30,26 +41,29 @@ export class ChatbotService {
     }
   }
 
-  getUserState(nickname: string) {
-    if (!this.userStates.has(nickname)) {
-      this.userStates.set(nickname, { step: 'start', nickname });
+  getUserState(userId: string): ChatbotState {
+    if (!this.userStates.has(userId)) {
+      this.userStates.set(userId, { step: 'start', userId });
     }
-    return this.userStates.get(nickname);
+    return this.userStates.get(userId)!;
   }
 
-  setUserState(nickname: string, state: any) {
-    this.userStates.set(nickname, state);
+  setUserState(userId: string, state: ChatbotState) {
+    this.userStates.set(userId, state);
   }
 
-  clearUserState(nickname: string) {
-    this.userStates.delete(nickname);
+  clearUserState(userId: string) {
+    this.userStates.delete(userId);
   }
 
-  private shuffleTags(tags: string[]) {
+  private shuffleTags(tags: string[]): string[] {
     return [...tags].sort(() => Math.random() - 0.5);
   }
 
-  async processMessage(message: string, state: any): Promise<ChatbotResponse> {
+  async processMessage(
+    message: string,
+    state: ChatbotState,
+  ): Promise<ChatbotResponse> {
     const lower = message.toLowerCase().trim();
     const moreKeywords = [
       '더',
@@ -90,10 +104,9 @@ export class ChatbotService {
       '무광',
       '투명',
     ];
-
     const validCategories = ['상의', '하의', '신발', '액세서리', '폰케이스'];
 
-    // 1. 초기 상태에서 아무 선택도 하지 않은 경우
+    // 1. 초기 상태
     if (
       state.step === 'start' &&
       ![
@@ -172,13 +185,13 @@ export class ChatbotService {
       };
     }
 
-    // 4. 위시리스트 기반 추천
+    // 4. 위시리스트 기반 추천 (userId 기준)
     if (
       state.step === 'start' &&
       (lower === 'wish_similar' ||
         message === '나의 위시템과 유사상품 추천 받을래!')
     ) {
-      const tags = await this.productsService.getUserWishTags(state.nickname);
+      const tags = await this.productsService.getUserWishTags(state.userId);
       const uniqueTags = [...new Set(tags)].filter(
         (t): t is string => typeof t === 'string',
       );
@@ -211,7 +224,7 @@ export class ChatbotService {
         newState: {
           step: 'recommend_wishlist',
           lastTag: tag,
-          nickname: state.nickname,
+          userId: state.userId,
           remainingTags: shuffled.filter((t) => t !== tag),
           userTags: uniqueTags,
         },
@@ -231,15 +244,15 @@ export class ChatbotService {
             content: '아래에서 원하는 카테고리를 먼저 골라주세요!',
           },
         ],
-        newState: { step: 'recommend_tag', nickname: state.nickname },
+        newState: { step: 'recommend_tag', userId: state.userId },
       };
     }
 
     // 6. '더 보여줘' 요청 처리
     if (state.step === 'recommend_tag') {
       if (moreKeywords.includes(message)) {
-        const tag = state.lastTag;
-        const category = state.currentCategory;
+        const tag = state.lastTag!;
+        const category = state.currentCategory!;
         const product = await this.getRandomProductByTagAndCategory(
           tag,
           category,
@@ -281,7 +294,7 @@ export class ChatbotService {
         };
       }
 
-      const category = state.currentCategory;
+      const category = state.currentCategory!;
       const product = await this.getRandomProductByTagAndCategory(
         message,
         category,
@@ -311,12 +324,12 @@ export class ChatbotService {
           step: 'recommend_tag',
           lastTag: message,
           currentCategory: category,
-          nickname: state.nickname,
+          userId: state.userId,
         },
       };
     }
 
-    // 7. fallback
+    // fallback
     return {
       reply: [
         {

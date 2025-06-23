@@ -1,7 +1,11 @@
-import { Injectable } from '@nestjs/common';
+import {
+  forwardRef,
+  Inject,
+  Injectable,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
-import mongoose from 'mongoose';
 import { SharedBucket, SharedBucketDocument } from './shared-bucket.schema';
 import { Product, ProductDocument } from '../products/products.schema';
 import { UsersService } from '../users/users.service';
@@ -19,66 +23,75 @@ export class SharedBucketService {
     private sharedBucketModel: Model<SharedBucketDocument>,
     @InjectModel(Product.name)
     private productModel: Model<ProductDocument>,
+    @Inject(forwardRef(() => UsersService))
     private usersService: UsersService,
   ) {}
 
+  private toObjectId(id: string) {
+    if (!id) return null;
+    return Types.ObjectId.isValid(id) ? new Types.ObjectId(id) : null;
+  }
+
+  // 내 userId가 포함된 모든 공유 버킷 + 상품
   async findBucketsByUserId(userId: string) {
-    const objectUserId = new mongoose.Types.ObjectId(userId);
-    const users = await this.usersService.findUsersByIds([userId]);
-    const myNickname = users[0]?.nickname;
-    if (!myNickname) throw new Error('닉네임 없음');
+    const objUserId = this.toObjectId(userId);
+    if (!objUserId)
+      throw new UnauthorizedException('유효하지 않은 사용자 ID입니다.');
 
     const buckets = await this.sharedBucketModel
-      .find({ userIds: objectUserId })
+      .find({ userIds: objUserId })
       .lean();
 
     const bucketsWithItems = await Promise.all(
       buckets.map(async (bucket) => {
-        const userIdStrings: string[] = Array.isArray(bucket.userIds)
-          ? bucket.userIds.map((id) =>
-              typeof id === 'string'
-                ? id
-                : (id as Types.ObjectId).toHexString(),
-            )
-          : [];
+        const collaboratorIds = (bucket.userIds ?? [])
+          .map((id) =>
+            typeof id === 'string' ? id : (id as Types.ObjectId)?.toString(),
+          )
+          .filter(Boolean);
 
         const collaborators =
-          await this.usersService.findUsersByIds(userIdStrings);
-        const nicknames = collaborators.map((u) => u.nickname);
+          await this.usersService.findUsersByIds(collaboratorIds);
 
         const products = await this.productModel
-          .find({ 'uploadedBy.nickname': { $in: nicknames } })
+          .find({ 'uploadedBy._id': { $in: collaboratorIds } })
+          .sort({ createdAt: -1 })
           .lean();
 
-        const itemsByNickname: Record<string, any[]> = {};
+        const itemsByUserId: Record<string, any[]> = {};
         for (const p of products) {
-          const nickname = p.uploadedBy?.nickname || 'unknown';
-          if (!itemsByNickname[nickname]) itemsByNickname[nickname] = [];
-          itemsByNickname[nickname].push(p);
+          const uid = String(p.uploadedBy?._id || 'unknown');
+          if (!itemsByUserId[uid]) itemsByUserId[uid] = [];
+          itemsByUserId[uid].push(p);
         }
 
         return {
           ...bucket,
           collaborators,
           items: products,
-          itemsByNickname,
+          itemsByUserId,
         };
       }),
     );
+
     return { buckets: bucketsWithItems };
   }
 
+  // 버킷이 없으면 생성, 있으면 반환 (참여자 정보도 포함)
   async getOrCreateSharedBucket(userId1: string, userId2: string) {
-    const objUserId1 = new mongoose.Types.ObjectId(userId1);
-    const objUserId2 = new mongoose.Types.ObjectId(userId2);
+    const objId1 = this.toObjectId(userId1);
+    const objId2 = this.toObjectId(userId2);
+
+    if (!objId1 || !objId2)
+      throw new UnauthorizedException('유효하지 않은 사용자 ID입니다.');
 
     let bucket = await this.sharedBucketModel.findOne({
-      userIds: { $all: [objUserId1, objUserId2] },
+      userIds: { $all: [objId1, objId2] },
     });
 
     if (!bucket) {
       bucket = await this.sharedBucketModel.create({
-        userIds: [objUserId1, objUserId2],
+        userIds: [objId1, objId2],
         comments: [],
       });
     }
@@ -90,17 +103,24 @@ export class SharedBucketService {
     return { ...bucket.toObject(), collaborators };
   }
 
+  // 특정 두 유저의 모든 상품, 참여자 정보 반환
   async getSharedWishlist(userId1: string, userId2: string) {
-    const users = await this.usersService.findUsersByIds([userId1, userId2]);
-    const nicknames = users.map((u) => u.nickname);
+    const objId1 = this.toObjectId(userId1);
+    const objId2 = this.toObjectId(userId2);
 
+    if (!objId1 || !objId2)
+      throw new UnauthorizedException('유효하지 않은 사용자 ID입니다.');
+
+    const users = await this.usersService.findUsersByIds([userId1, userId2]);
     const products = await this.productModel
-      .find({ 'uploadedBy.nickname': { $in: nicknames } })
+      .find({ 'uploadedBy._id': { $in: [userId1, userId2] } })
+      .sort({ createdAt: -1 })
       .lean();
 
     return { items: products, collaborators: users };
   }
 
+  // 공유 버킷에 댓글 추가
   async addComment(bucketId: string, user: UserPayload, text: string) {
     const comment = {
       userId: user._id,
@@ -116,14 +136,26 @@ export class SharedBucketService {
     );
   }
 
+  // 공유 버킷의 댓글 목록 가져오기
   async getComments(bucketId: string) {
     const bucket = await this.sharedBucketModel.findById(bucketId);
     return bucket?.comments || [];
   }
 
+  // 특정 두 유저의 공유 버킷 삭제
   async deleteBucketsByUserPair(userId1: string, userId2: string) {
+    const objId1 = this.toObjectId(userId1);
+    const objId2 = this.toObjectId(userId2);
+
+    if (!objId1 || !objId2)
+      throw new UnauthorizedException('유효하지 않은 사용자 ID입니다.');
+
     await this.sharedBucketModel.deleteMany({
-      userIds: { $all: [userId1, userId2] },
+      userIds: { $all: [objId1, objId2] },
     });
+  }
+
+  async deleteBucketsByUser(userId: string): Promise<void> {
+    await this.sharedBucketModel.deleteMany({ userIds: userId });
   }
 }

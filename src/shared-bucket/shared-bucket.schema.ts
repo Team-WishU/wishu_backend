@@ -6,7 +6,7 @@ export type SharedBucketDocument = SharedBucket & Document;
 @Schema({ timestamps: true })
 export class SharedBucket {
   @Prop({ required: true, type: [String] })
-  userIds: string[]; // [내id, 친구id]
+  userIds: string[];
 
   @Prop({ type: [Object], default: [] })
   comments: {

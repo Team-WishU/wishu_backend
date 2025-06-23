@@ -8,7 +8,7 @@ import {
 import { InjectModel } from '@nestjs/mongoose';
 import { User, UserDocument } from '../users/users.schema';
 import { Model, Types } from 'mongoose';
-import { SharedBucketService } from '../shared-bucket/shared-bucket.service'; // 추가
+import { SharedBucketService } from '../shared-bucket/shared-bucket.service';
 
 @Injectable()
 export class FriendsService {
@@ -16,7 +16,7 @@ export class FriendsService {
     @InjectModel(User.name)
     private readonly userModel: Model<UserDocument>,
     @Inject(forwardRef(() => SharedBucketService))
-    private readonly sharedBucketService: SharedBucketService, // 추가
+    private readonly sharedBucketService: SharedBucketService,
   ) {}
 
   // 친구 요청 보내기
@@ -28,7 +28,6 @@ export class FriendsService {
 
     if (!from || !to) throw new NotFoundException('사용자 없음');
 
-    // ObjectId로 변환해서 비교
     if (from.friends.some((id) => id.equals(toId)))
       throw new BadRequestException('이미 친구');
     if (

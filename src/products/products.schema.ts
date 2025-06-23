@@ -43,6 +43,7 @@ export class Product {
   @Prop({
     type: [
       {
+        userId: { type: String, required: true },
         text: { type: String, required: true },
         nickname: { type: String, required: true },
         profileImage: { type: String, required: true },
@@ -51,6 +52,7 @@ export class Product {
     default: [],
   })
   comments: {
+    userId: string;
     text: string;
     nickname: string;
     profileImage: string;

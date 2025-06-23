@@ -15,7 +15,7 @@ import { UpdateUserDto } from './update-user.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 
 interface JwtPayload {
-  userId: string;
+  _id: string;
   email: string;
 }
 
@@ -36,13 +36,13 @@ export class UsersController {
   @UseGuards(JwtAuthGuard)
   @Get('me')
   getMe(@Request() req: { user: JwtPayload }) {
-    return this.usersService.findById(req.user.userId);
+    return this.usersService.findById(req.user._id);
   }
 
   @UseGuards(JwtAuthGuard)
   @Patch('me')
   updateMe(@Request() req: { user: JwtPayload }, @Body() dto: UpdateUserDto) {
-    return this.usersService.updateUser(req.user.userId, dto);
+    return this.usersService.updateUser(req.user._id, dto); // userId → _id
   }
 
   @Get(':id')
