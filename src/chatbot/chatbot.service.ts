@@ -191,7 +191,7 @@ export class ChatbotService {
       (lower === 'wish_similar' ||
         message === '나의 위시템과 유사상품 추천 받을래!')
     ) {
-      const tags = await this.productsService.getUserWishTags(state.userId);
+      const tags = await this.productsService.getUserSavedTags(state.userId);
       const uniqueTags = [...new Set(tags)].filter(
         (t): t is string => typeof t === 'string',
       );
