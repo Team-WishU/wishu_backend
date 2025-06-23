@@ -15,12 +15,6 @@ import { ProductsService } from './products.service';
 import { CreateProductDto } from './create-product.dto';
 import { Request } from 'express';
 
-interface UserPayload {
-  _id: string;
-  nickname: string;
-  profileImage: string;
-}
-
 @Controller('products')
 export class ProductsController {
   constructor(private readonly productsService: ProductsService) {}
@@ -45,7 +39,7 @@ export class ProductsController {
     @Body() createProductDto: CreateProductDto & { imageUrl: string },
     @Req() req: Request,
   ) {
-    const user = req.user as UserPayload;
+    const user = req.user as { nickname: string; profileImage: string };
     return this.productsService.create(createProductDto, user);
   }
 
@@ -83,7 +77,7 @@ export class ProductsController {
     @Body('text') text: string,
     @Req() req: Request,
   ) {
-    const user = req.user as UserPayload;
+    const user = req.user as { nickname: string; profileImage: string };
     return this.productsService.addComment(id, text, user);
   }
 
@@ -113,7 +107,6 @@ export class ProductsController {
   @Post(':id/save')
   async saveProduct(@Param('id') id: string, @Req() req: Request) {
     const user = req.user as { nickname: string };
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
     return this.productsService.saveProductForUser(id, user.nickname);
   }
 
@@ -139,16 +132,5 @@ export class ProductsController {
   async deleteSavedProduct(@Param('id') id: string, @Req() req: Request) {
     const user = req.user as { nickname: string };
     return this.productsService.deleteSavedProduct(id, user.nickname);
-  }
-
-  @Get('user/:userId')
-  async getProductsByUser(@Param('userId') userId: string) {
-    const products = await this.productsService.findByUserId(userId);
-    return products;
-  }
-
-  @Get('user-by-nickname/:nickname')
-  async getProductsByNickname(@Param('nickname') nickname: string) {
-    return this.productsService.findByNickname(nickname);
   }
 }

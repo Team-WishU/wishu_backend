@@ -8,12 +8,6 @@ import { Product, ProductDocument } from './products.schema';
 import { CreateProductDto } from './create-product.dto';
 import { Model } from 'mongoose';
 
-interface SearchFilters {
-  keyword?: string;
-  tag?: string;
-  brand?: string;
-}
-
 @Injectable()
 export class ProductsService {
   constructor(
@@ -22,15 +16,11 @@ export class ProductsService {
 
   async create(
     createProductDto: CreateProductDto & { imageUrl: string },
-    user: { _id: string; nickname: string; profileImage: string },
+    user: { nickname: string; profileImage: string },
   ) {
     const product = new this.productModel({
       ...createProductDto,
-      uploadedBy: {
-        _id: user._id,
-        nickname: user.nickname,
-        profileImage: user.profileImage,
-      },
+      uploadedBy: user,
     });
     const saved = await product.save();
 
@@ -117,8 +107,12 @@ export class ProductsService {
     return Array.from(uniqueMap.values()).slice(0, 10);
   }
 
-  async searchProducts(filters: SearchFilters) {
-    const query: Record<string, any> = {};
+  async searchProducts(filters: {
+    keyword?: string;
+    tag?: string;
+    brand?: string;
+  }) {
+    const query: any = {};
 
     if (filters.keyword) {
       query.$or = [
@@ -249,16 +243,8 @@ export class ProductsService {
     return { message: '찜 목록에서 상품이 삭제되었습니다.' };
   }
 
-  async findByUserId(userId: string): Promise<ProductDocument[]> {
-    return this.productModel.find({ 'uploadedBy._id': userId }).exec();
-  }
-
-  async findByTag(tag: string): Promise<ProductDocument[]> {
-    return this.productModel.find({ tags: tag }).exec();
-  }
-
-  async findByNickname(nickname: string): Promise<ProductDocument[]> {
-    return this.productModel.find({ 'uploadedBy.nickname': nickname }).exec();
+  async findByTag(tag: string): Promise<Product[]> {
+    return this.productModel.find({ tags: { $in: [tag] } }).lean();
   }
 
   async findByKeywords(keywords: string[]): Promise<Product[]> {
@@ -273,5 +259,31 @@ export class ProductsService {
     }));
 
     return this.productModel.find({ $or: regexConditions }).limit(10).exec();
+  }
+
+  // 사용자 태그 가져오기
+  async getUserWishTags(nickname: string): Promise<string[]> {
+    const products = await this.productModel
+      .find({ 'uploadedBy.nickname': nickname }) // 사용자가 올린 상품들
+      .select('tags')
+      .lean();
+
+    const tagSet = new Set<string>();
+    for (const product of products) {
+      for (const tag of product.tags || []) {
+        tagSet.add(tag);
+      }
+    }
+
+    return Array.from(tagSet);
+  }
+
+  async findByTagAndCategory(tag: string, category: string) {
+    return this.productModel
+      .find({
+        tags: tag,
+        category: category,
+      })
+      .exec();
   }
 }
