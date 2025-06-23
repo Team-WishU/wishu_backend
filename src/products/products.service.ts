@@ -89,8 +89,9 @@ export class ProductsService {
     return { message: '상품이 성공적으로 수정되었습니다.' };
   }
 
-  async findById(productId: string): Promise<ProductDocument | null> {
-    return this.productModel.findById(productId);
+  async findById(productId: string): Promise<any> {
+    const product = await this.productModel.findById(productId).lean();
+    return product;
   }
 
   async addComment(
