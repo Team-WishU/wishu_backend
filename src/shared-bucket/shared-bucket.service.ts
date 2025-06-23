@@ -32,7 +32,7 @@ export class SharedBucketService {
     return Types.ObjectId.isValid(id) ? new Types.ObjectId(id) : null;
   }
 
-  // 내 userId가 포함된 모든 공유 버킷 + 상품
+  // 내 userId가 포함된 모든 공유 버킷 + (찜한 상품들만)
   async findBucketsByUserId(userId: string) {
     const objUserId = this.toObjectId(userId);
     if (!objUserId)
@@ -53,16 +53,22 @@ export class SharedBucketService {
         const collaborators =
           await this.usersService.findUsersByIds(collaboratorIds);
 
+        // 💡 "찜한 상품"만 가져오도록 변경!
         const products = await this.productModel
-          .find({ 'uploadedBy._id': { $in: collaboratorIds } })
+          .find({ savedBy: { $in: collaboratorIds } })
           .sort({ createdAt: -1 })
           .lean();
 
+        // 참여자별로 아이템 묶기 (찜한 상품별)
         const itemsByUserId: Record<string, any[]> = {};
         for (const p of products) {
-          const uid = String(p.uploadedBy?._id || 'unknown');
-          if (!itemsByUserId[uid]) itemsByUserId[uid] = [];
-          itemsByUserId[uid].push(p);
+          for (const saved of p.savedBy ?? []) {
+            const uid = String(saved);
+            if (collaboratorIds.includes(uid)) {
+              if (!itemsByUserId[uid]) itemsByUserId[uid] = [];
+              itemsByUserId[uid].push(p);
+            }
+          }
         }
 
         return {
@@ -103,7 +109,7 @@ export class SharedBucketService {
     return { ...bucket.toObject(), collaborators };
   }
 
-  // 특정 두 유저의 모든 상품, 참여자 정보 반환
+  // 특정 두 유저의 "찜한 상품" + 참여자 정보 반환
   async getSharedWishlist(userId1: string, userId2: string) {
     const objId1 = this.toObjectId(userId1);
     const objId2 = this.toObjectId(userId2);
@@ -112,8 +118,9 @@ export class SharedBucketService {
       throw new UnauthorizedException('유효하지 않은 사용자 ID입니다.');
 
     const users = await this.usersService.findUsersByIds([userId1, userId2]);
+    // 💡 찜한 상품만!
     const products = await this.productModel
-      .find({ 'uploadedBy._id': { $in: [userId1, userId2] } })
+      .find({ savedBy: { $in: [userId1, userId2] } })
       .sort({ createdAt: -1 })
       .lean();
 
