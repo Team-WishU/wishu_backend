@@ -8,6 +8,7 @@ export interface ChatbotState {
   currentCategory?: string;
   remainingTags?: string[];
   userTags?: string[];
+  lastProduct?: unknown;
 }
 
 export interface ChatbotReply {
@@ -72,6 +73,7 @@ export class ChatbotService {
       '다른거',
       '하나 더',
       '추천 더',
+      '또',
     ];
 
     const validTags = [
@@ -104,9 +106,9 @@ export class ChatbotService {
       '무광',
       '투명',
     ];
+
     const validCategories = ['상의', '하의', '신발', '액세서리', '폰케이스'];
 
-    // 1. 초기 상태
     if (
       state.step === 'start' &&
       ![
@@ -128,7 +130,21 @@ export class ChatbotService {
       };
     }
 
-    // 2. 카테고리 선택
+    if (
+      state.step === 'start' &&
+      message === '전체 태그별 맘에 드는 태그 상품 추천 받을래!'
+    ) {
+      return {
+        reply: [
+          {
+            type: 'bot',
+            content: `아래에서 카테고리를 골라주세요 👇`,
+          },
+        ],
+        newState: { ...state, step: 'recommend_tag' },
+      };
+    }
+
     if (validCategories.includes(message) && state.step === 'recommend_tag') {
       return {
         reply: [
@@ -137,36 +153,74 @@ export class ChatbotService {
             content: `'${message}' 카테고리를 선택했어요!\n원하는 태그를 골라주세요 👇`,
           },
         ],
-        newState: { ...state, currentCategory: message },
+        newState: { ...state, currentCategory: message, step: 'recommend_tag' },
       };
     }
 
-    // 3. 태그 선택
     if (validTags.includes(message)) {
-      const category = state.currentCategory;
-      if (!category) {
+      if (state.step === 'recommend_tag') {
+        const category = state.currentCategory;
+        if (!category) {
+          return {
+            reply: [
+              {
+                type: 'bot',
+                content: `카테고리 정보가 없어 상품을 불러올 수 없어요. 다시 시도해주세요.`,
+              },
+            ],
+            newState: { ...state },
+          };
+        }
+
+        const product = await this.getRandomProductByTagAndCategory(
+          message,
+          category,
+        );
+        if (!product) {
+          return {
+            reply: [
+              {
+                type: 'bot',
+                content: `죄송해요! '${category}' 카테고리의 '${message}' 태그에 해당하는 상품이 없어요. 😥\n다른 태그를 골라주세요!`,
+              },
+            ],
+            newState: state,
+          };
+        }
+
         return {
           reply: [
             {
               type: 'bot',
-              content: `카테고리 정보가 없어 상품을 불러올 수 없어요. 다시 시도해주세요.`,
+              content: `'${category}' 카테고리의 '${message}' 태그 추천 상품이에요!`,
             },
+            { type: 'product', products: [product] },
           ],
-          newState: { ...state },
+          newState: { ...state, lastTag: message, lastProduct: product },
         };
       }
+    }
 
+    if (
+      state.step === 'recommend_tag' &&
+      moreKeywords.includes(message) &&
+      state.lastTag &&
+      state.currentCategory
+    ) {
       const product = await this.getRandomProductByTagAndCategory(
-        message,
-        category,
+        state.lastTag,
+        state.currentCategory,
       );
 
-      if (!product) {
+      if (
+        !product ||
+        (state.lastProduct as any)?._id === (product as any)?._id
+      ) {
         return {
           reply: [
             {
               type: 'bot',
-              content: `죄송해요! '${category}' 카테고리의 '${message}' 태그에 해당하는 상품이 없어요. 😥\n다른 태그를 골라주세요!`,
+              content: `죄송해요, 새로운 상품을 찾지 못했어요. 😥`,
             },
           ],
           newState: state,
@@ -177,15 +231,26 @@ export class ChatbotService {
         reply: [
           {
             type: 'bot',
-            content: `'${category}' 카테고리의 '${message}' 태그 추천 상품이에요!`,
+            content: `'${state.currentCategory}' 카테고리의 '${state.lastTag}' 태그 다른 상품이에요!`,
           },
           { type: 'product', products: [product] },
         ],
-        newState: { ...state, lastTag: message },
+        newState: { ...state, lastProduct: product },
       };
     }
 
-    // 4. 위시리스트 기반 추천 (userId 기준)
+    if (state.step === 'recommend_tag' && state.currentCategory) {
+      return {
+        reply: [
+          {
+            type: 'bot',
+            content: `죄송해요! '${state.currentCategory}' 카테고리의 '${message}' 태그에 해당하는 상품이 없어요. 😥\n다른 태그를 골라주세요!`,
+          },
+        ],
+        newState: state,
+      };
+    }
+
     if (
       state.step === 'start' &&
       (lower === 'wish_similar' ||
@@ -214,7 +279,6 @@ export class ChatbotService {
 
       return {
         reply: [
-          { type: 'bot', content: `보유 태그: ${uniqueTags.join(', ')}` },
           {
             type: 'bot',
             content: `위시리스트 기반 태그 '${tag}'의 추천 상품이에요!`,
@@ -227,114 +291,78 @@ export class ChatbotService {
           userId: state.userId,
           remainingTags: shuffled.filter((t) => t !== tag),
           userTags: uniqueTags,
+          lastProduct: product[0],
         },
       };
     }
 
-    // 5. 전체 태그 추천 흐름 시작
-    if (
-      state.step === 'start' &&
-      (lower === 'tag_recommend' ||
-        message === '전체 태그별 맘에 드는 태그 상품 추천 받을래!')
-    ) {
-      return {
-        reply: [
-          {
-            type: 'bot',
-            content: '아래에서 원하는 카테고리를 먼저 골라주세요!',
-          },
-        ],
-        newState: { step: 'recommend_tag', userId: state.userId },
-      };
-    }
+    //  추가된 로직: wish 기반 추천 후 "더" 입력시 다음 태그로 추천
+    if (state.step === 'recommend_wishlist' && moreKeywords.includes(message)) {
+      const remaining = state.remainingTags || [];
 
-    // 6. '더 보여줘' 요청 처리
-    if (state.step === 'recommend_tag') {
-      if (moreKeywords.includes(message)) {
-        const tag = state.lastTag!;
-        const category = state.currentCategory!;
-        const product = await this.getRandomProductByTagAndCategory(
-          tag,
-          category,
-        );
-
-        if (!product) {
-          return {
-            reply: [
-              {
-                type: 'bot',
-                content: `죄송해요! '${category}' 카테고리의 '${tag}' 태그에 추가 상품이 없어요. 😥`,
-              },
-            ],
-            newState: state,
-          };
-        }
-
+      if (remaining.length === 0) {
         return {
           reply: [
             {
               type: 'bot',
-              content: `이번에도 '${category}' 카테고리의 '${tag}' 태그 상품이에요!`,
+              content:
+                '추천해드릴 수 있는 태그가 더 이상 없어요 \ud83e\udd72\n새로운 태그를 추가하거나, 위시리스트를 업데이트해 보세요!',
             },
-            { type: 'product', products: [product] },
           ],
           newState: { ...state },
         };
       }
 
-      if (!validTags.includes(message)) {
-        return {
-          reply: [
-            {
-              type: 'bot',
-              content: `죄송해요, '${message}' 태그는 아직 없어요! 다른 걸 골라주세요.`,
-            },
-          ],
-          newState: state,
-        };
-      }
-
-      const category = state.currentCategory!;
-      const product = await this.getRandomProductByTagAndCategory(
-        message,
-        category,
-      );
-
-      if (!product) {
-        return {
-          reply: [
-            {
-              type: 'bot',
-              content: `죄송해요! '${category}' 카테고리의 '${message}' 태그에 해당하는 상품이 없어요. 😥`,
-            },
-          ],
-          newState: state,
-        };
-      }
+      const nextTag = remaining[0];
+      const product = await this.productsService.findByTag(nextTag);
 
       return {
         reply: [
           {
             type: 'bot',
-            content: `'${category}' 카테고리의 '${message}' 태그 추천 상품이에요!`,
+            content: `위시리스트 기반 태그 '${nextTag}'의 추천 상품이에요!`,
           },
-          { type: 'product', products: [product] },
+          { type: 'product', products: product.length ? [product[0]] : [] },
         ],
         newState: {
-          step: 'recommend_tag',
-          lastTag: message,
-          currentCategory: category,
-          userId: state.userId,
+          ...state,
+          lastTag: nextTag,
+          lastProduct: product[0],
+          remainingTags: remaining.slice(1),
         },
       };
     }
 
-    // fallback
+    if (
+      state.step === 'recommend_wishlist' &&
+      validTags.includes(message) &&
+      (state.userTags || []).includes(message)
+    ) {
+      const product = await this.productsService.findByTag(message);
+      return {
+        reply: [
+          {
+            type: 'bot',
+            content: `위시리스트 기반 태그 '${message}'의 추천 상품이에요!`,
+          },
+          { type: 'product', products: product.length ? [product[0]] : [] },
+        ],
+        newState: {
+          ...state,
+          lastTag: message,
+          lastProduct: product[0],
+          remainingTags: (state.remainingTags || []).filter(
+            (t) => t !== message,
+          ),
+        },
+      };
+    }
+
     return {
       reply: [
         {
           type: 'bot',
-          content: '죄송해요, 이해하지 못했어요. 태그를 다시 입력해 주세요!',
+          content: `죄송해요, 이해하지 못했어요.\n\n아래 태그 중에서 골라 입력해 주세요!\n[보유 태그]: ${state.userTags?.join(', ') || '없음'}`,
         },
       ],
       newState: state,
