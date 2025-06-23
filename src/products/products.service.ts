@@ -318,9 +318,9 @@ export class ProductsService {
     return this.productModel.find({ $or: regexConditions }).limit(10).exec();
   }
 
-  async getUserWishTags(userId: string): Promise<string[]> {
+  async getUserSavedTags(userId: string): Promise<string[]> {
     const products = await this.productModel
-      .find({ 'uploadedBy._id': userId })
+      .find({ savedBy: userId })
       .select('tags')
       .lean();
 
@@ -330,7 +330,6 @@ export class ProductsService {
         tagSet.add(tag);
       }
     }
-
     return Array.from(tagSet);
   }
 

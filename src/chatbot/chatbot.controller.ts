@@ -1,25 +1,36 @@
-import { Controller, Post, Body } from '@nestjs/common';
+import { Controller, Post, Body, Req, UseGuards } from '@nestjs/common';
 import {
   ChatbotService,
   ChatbotState,
   ChatbotResponse,
 } from './chatbot.service';
+import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
+import { Request } from 'express';
 
 @Controller('chatbot')
 export class ChatbotController {
   constructor(private readonly chatbotService: ChatbotService) {}
 
+  @UseGuards(JwtAuthGuard)
   @Post('message')
   async handleMessage(
     @Body('message') message: string,
-    @Body('userId') userId?: string,
+    @Req() req: Request,
   ): Promise<{ success: boolean; messages: unknown[] }> {
-    const realUserId = userId?.trim() || 'guest';
+    // 토큰에서 추출된 유저 정보
+    const user = req.user as { _id: string } | undefined;
+    const userId = user?._id;
+    if (!userId) {
+      return {
+        success: false,
+        messages: [{ type: 'bot', content: '로그인이 필요해요!' }],
+      };
+    }
 
-    const prevState = this.chatbotService.getUserState(realUserId);
+    const prevState = this.chatbotService.getUserState(userId);
     const mergedState: ChatbotState = {
       ...prevState,
-      userId: userId ?? prevState.userId,
+      userId,
     };
 
     const result: ChatbotResponse = await this.chatbotService.processMessage(
@@ -35,15 +46,19 @@ export class ChatbotController {
     }
 
     const { reply, newState } = result;
-    this.chatbotService.setUserState(realUserId, newState);
+    this.chatbotService.setUserState(userId, newState);
 
     return { success: true, messages: reply };
   }
 
+  @UseGuards(JwtAuthGuard)
   @Post('reset')
-  resetChat(@Body('userId') userId: string): { success: boolean } {
-    const realUserId = userId?.trim() || 'guest';
-    this.chatbotService.clearUserState(realUserId);
+  resetChat(@Req() req: Request): { success: boolean } {
+    const user = req.user as { _id: string } | undefined;
+    const userId = user?._id;
+    if (userId) {
+      this.chatbotService.clearUserState(userId);
+    }
     return { success: true };
   }
 }
